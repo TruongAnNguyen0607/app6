@@ -69,11 +69,12 @@ class MyApp extends StatelessWidget {
 }
 
 class Group {
-  Group(this.name, this.note, this.members, this.icon, this.color);
+  Group(this.name, this.note, this.memberNames, this.icon, this.color);
   final String name, note;
-  final int members;
+  final List<String> memberNames;
   final IconData icon;
   final Color color;
+  int get members => memberNames.length;
 }
 
 class Expense {
@@ -81,6 +82,21 @@ class Expense {
   final String name, payer;
   final Group group;
   final int cents;
+}
+
+class PartyItem {
+  PartyItem(this.name, {this.quantity = 1, this.notes = '', this.claimedBy});
+  final String name;
+  final int quantity;
+  final String notes;
+  String? claimedBy; // null = unclaimed, else a name from group.memberNames
+}
+
+class PartyList {
+  PartyList(this.title, this.group, this.items);
+  final String title;
+  final Group group;
+  final List<PartyItem> items;
 }
 
 class HomePage extends StatefulWidget {
@@ -96,21 +112,21 @@ class _HomePageState extends State<HomePage> {
     Group(
       'Weekend in Lisbon',
       'A little adventure together',
-      4,
+      ['You', 'Alex', 'Sam', 'Priya'],
       Icons.flight_takeoff_rounded,
       const Color(0xFFE4EBCD),
     ),
     Group(
       'The dinner club',
       'Good food, better company',
-      5,
+      ['You', 'Alex', 'Sam', 'Priya', 'Morgan'],
       Icons.restaurant_rounded,
       const Color(0xFFF7E3D2),
     ),
     Group(
       'Our happy place',
       'Home is a team effort',
-      3,
+      ['You', 'Alex', 'Sam'],
       Icons.cottage_outlined,
       const Color(0xFFE1E8F4),
     ),
@@ -119,6 +135,18 @@ class _HomePageState extends State<HomePage> {
     Expense('Dinner at Alma', groups[1], 12800, 'You'),
     Expense('A place to stay', groups[0], 36000, 'Alex'),
     Expense('Weekly groceries', groups[2], 6450, 'You'),
+  ];
+  late final List<PartyList> partyLists = [
+    PartyList('Lisbon send-off party', groups[0], [
+      PartyItem(
+        'Sparkling wine',
+        quantity: 2,
+        notes: 'Something bubbly for the toast',
+      ),
+      PartyItem('Portuguese custard tarts', quantity: 12, claimedBy: 'Alex'),
+      PartyItem('Playlist & speaker', notes: 'Upbeat, not too loud'),
+      PartyItem('Ice', quantity: 2, claimedBy: 'You'),
+    ]),
   ];
 
   int balance(Group group) => expenses
@@ -198,8 +226,25 @@ class _HomePageState extends State<HomePage> {
                           heading(
                             'Activity',
                             'All the little things you split together.',
+                            action: OutlinedButton.icon(
+                              onPressed: startPartyList,
+                              icon: const Icon(Icons.celebration_outlined),
+                              label: const Text('Start a party list'),
+                            ),
                           ),
                           const SizedBox(height: 24),
+                          Text(
+                            'Party lists',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          partyListGrid(),
+                          const SizedBox(height: 30),
+                          Text(
+                            'Expenses',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 12),
                           expenseList(),
                         ] else ...[
                           heading(
@@ -740,7 +785,7 @@ class _HomePageState extends State<HomePage> {
                         const Color(0xFFDDE6EE),
                       ][i],
                       child: Text(
-                        ['J', 'A', 'S'][i],
+                        g.memberNames[i][0],
                         style: const TextStyle(fontSize: 10, color: ink),
                       ),
                     ),
@@ -773,6 +818,88 @@ class _HomePageState extends State<HomePage> {
       ),
     ),
   );
+
+  Widget partyListGrid() => LayoutBuilder(
+    builder: (context, constraints) {
+      final columns = constraints.maxWidth > 760
+          ? 3
+          : constraints.maxWidth > 480
+          ? 2
+          : 1;
+      return Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        children: partyLists
+            .map(
+              (p) => SizedBox(
+                width: (constraints.maxWidth - (columns - 1) * 16) / columns,
+                child: partyListCard(p),
+              ),
+            )
+            .toList(),
+      );
+    },
+  );
+
+  Widget partyListCard(PartyList list) {
+    final claimed = list.items.where((i) => i.claimedBy != null).length;
+    final total = list.items.length;
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: Color(0xFFE5E9E1)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => openPartyList(list),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: lime,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Icon(Icons.celebration_outlined, color: ink),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.north_east, size: 18, color: muted),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(list.title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(list.group.name, style: const TextStyle(fontSize: 11)),
+              const SizedBox(height: 16),
+              Text(
+                total == 0
+                    ? 'No items yet'
+                    : '$claimed of $total items claimed',
+                style: const TextStyle(fontSize: 11, color: muted),
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: total == 0 ? 0 : claimed / total,
+                  minHeight: 7,
+                  color: green,
+                  backgroundColor: const Color(0xFFD7DFC7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget expenseList({Group? group}) {
     final list = expenses
@@ -844,6 +971,73 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget partyItemList(PartyList list, StateSetter setSheetState) {
+    final items = list.items;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E9E1)),
+      ),
+      child: items.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(30),
+              child: Text('No items yet. Add the first thing to bring.'),
+            )
+          : Column(
+              children: [
+                for (int i = 0; i < items.length; i++) ...[
+                  if (i > 0)
+                    const Divider(
+                      height: 1,
+                      indent: 22,
+                      endIndent: 22,
+                      color: Color(0xFFEDF0E9),
+                    ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 9,
+                    ),
+                    title: Text(
+                      '×${items[i].quantity}  ${items[i].name}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: ink,
+                      ),
+                    ),
+                    subtitle: items[i].notes.isEmpty
+                        ? null
+                        : Text(
+                            items[i].notes,
+                            style: const TextStyle(fontSize: 11, color: muted),
+                          ),
+                    trailing: items[i].claimedBy == null
+                        ? OutlinedButton(
+                            onPressed: () => setSheetState(
+                              () => items[i].claimedBy = 'You',
+                            ),
+                            child: const Text("I'll bring this"),
+                          )
+                        : items[i].claimedBy == 'You'
+                        ? TextButton(
+                            onPressed: () => setSheetState(
+                              () => items[i].claimedBy = null,
+                            ),
+                            child: const Text('Undo'),
+                          )
+                        : Text(
+                            'Claimed by ${items[i].claimedBy}',
+                            style: const TextStyle(fontSize: 11, color: muted),
+                          ),
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+
   Future<void> openGroup(Group group) => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -871,6 +1065,127 @@ class _HomePageState extends State<HomePage> {
       ),
     ),
   );
+
+  Future<void> openPartyList(PartyList list) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: cream,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => FractionallySizedBox(
+          heightFactor: .75,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        list.title,
+                        style: Theme.of(sheetContext).textTheme.headlineSmall,
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final item = await addPartyItem();
+                        if (item != null) {
+                          setSheetState(() => list.items.add(item));
+                        }
+                      },
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add item'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('${list.group.name} • ${list.items.length} items'),
+                const SizedBox(height: 24),
+                partyItemList(list, setSheetState),
+                const SizedBox(height: 20),
+                const Text(
+                  'Only you can claim or release items on this device. '
+                  'This preview uses sample data; changes last for this session.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    // The sheet lives in the overlay, outside the main widget subtree, so
+    // changes made inside it don't repaint partyListCard's progress bar on
+    // their own — force that now that the sheet (mutating the same live
+    // list/items) has closed.
+    if (mounted) setState(() {});
+  }
+
+  Future<void> startPartyList() async {
+    final title = TextEditingController();
+    final form = GlobalKey<FormState>();
+    Group group = groups.first;
+    final result = await showDialog<PartyList>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Start a party list'),
+        content: SizedBox(
+          width: 360,
+          child: Form(
+            key: form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: title,
+                  decoration: const InputDecoration(labelText: 'Party title'),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Give your party a title'
+                      : null,
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<Group>(
+                  initialValue: group,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Group'),
+                  items: groups
+                      .map(
+                        (g) =>
+                            DropdownMenuItem(value: g, child: Text(g.name)),
+                      )
+                      .toList(),
+                  onChanged: (v) => group = v!,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (form.currentState!.validate()) {
+                Navigator.pop(
+                  dialogContext,
+                  PartyList(title.text.trim(), group, []),
+                );
+              }
+            },
+            child: const Text('Create list'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && mounted) setState(() => partyLists.insert(0, result));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    title.dispose();
+    if (result != null && mounted) await openPartyList(result);
+  }
 
   Future<void> addExpense() async {
     final name = TextEditingController();
@@ -1038,7 +1353,11 @@ class _HomePageState extends State<HomePage> {
                   Group(
                     name.text.trim(),
                     'New memories in the making',
-                    int.parse(members.text),
+                    [
+                      'You',
+                      for (int i = 2; i <= int.parse(members.text); i++)
+                        'Member $i',
+                    ],
                     Icons.people_outline,
                     const Color(0xFFE4EBCD),
                   ),
@@ -1059,6 +1378,82 @@ class _HomePageState extends State<HomePage> {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     name.dispose();
     members.dispose();
+  }
+
+  Future<PartyItem?> addPartyItem() async {
+    final name = TextEditingController();
+    final quantity = TextEditingController(text: '1');
+    final notes = TextEditingController();
+    final form = GlobalKey<FormState>();
+    final result = await showDialog<PartyItem>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add an item'),
+        content: SizedBox(
+          width: 360,
+          child: Form(
+            key: form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Item name'),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Enter an item name'
+                      : null,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: quantity,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Quantity'),
+                  validator: (v) {
+                    final n = int.tryParse(v ?? '');
+                    return n == null || n < 1 || n > 99
+                        ? 'Choose between 1 and 99'
+                        : null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: notes,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (optional)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (form.currentState!.validate()) {
+                Navigator.pop(
+                  dialogContext,
+                  PartyItem(
+                    name.text.trim(),
+                    quantity: int.parse(quantity.text.trim()),
+                    notes: notes.text.trim(),
+                  ),
+                );
+              }
+            },
+            child: const Text('Add item'),
+          ),
+        ],
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    name.dispose();
+    quantity.dispose();
+    notes.dispose();
+    return result;
   }
 
   Future<void> contribute() async {
