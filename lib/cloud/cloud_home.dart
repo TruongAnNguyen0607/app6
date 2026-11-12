@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'group_repository.dart';
 import 'expense_repository.dart';
 import 'group_details.dart';
+import 'invitation_repository.dart';
+import 'invitation_widgets.dart';
 
 class CloudAuthGate extends StatelessWidget {
   const CloudAuthGate({
@@ -11,10 +13,12 @@ class CloudAuthGate extends StatelessWidget {
     required this.auth,
     required this.repository,
     required this.expenseRepository,
+    this.invitations,
   });
   final FirebaseAuth auth;
   final GroupRepository repository;
   final ExpenseRepository expenseRepository;
+  final InvitationRepository? invitations;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<User?>(
@@ -39,6 +43,7 @@ class CloudAuthGate extends StatelessWidget {
         userId: user.uid,
         repository: repository,
         expenseRepository: expenseRepository,
+        invitations: invitations,
         onSignOut: auth.signOut,
       );
     },
@@ -221,10 +226,12 @@ class CloudGroupsPage extends StatefulWidget {
     required this.repository,
     required this.onSignOut,
     this.expenseRepository,
+    this.invitations,
   });
   final String userId;
   final GroupRepository repository;
   final ExpenseRepository? expenseRepository;
+  final InvitationRepository? invitations;
   final Future<void> Function() onSignOut;
   @override
   State<CloudGroupsPage> createState() => _CloudGroupsPageState();
@@ -311,6 +318,35 @@ class _CloudGroupsPageState extends State<CloudGroupsPage> {
                 'Your groups, expenses, and balances. All in one place.',
               ),
               const SizedBox(height: 24),
+              if (widget.invitations != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: OutlinedButton.icon(
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            final joinedId = await showDialog<String>(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (_) => JoinGroupDialog(
+                                repository: widget.invitations!,
+                                userId: widget.userId,
+                              ),
+                            );
+                            if (joinedId != null && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Group joined. It will appear in your groups.',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                    icon: const Icon(Icons.group_add_outlined),
+                    label: const Text('Join group'),
+                  ),
+                ),
               TextField(
                 controller: name,
                 enabled: !saving,
@@ -394,11 +430,20 @@ class _CloudGroupsPageState extends State<CloudGroupsPage> {
                                 ? null
                                 : () => Navigator.of(context).push(
                                     MaterialPageRoute<void>(
-                                      builder: (_) => GroupDetailsPage(
-                                        group: group,
-                                        userId: widget.userId,
-                                        repository: widget.expenseRepository!,
-                                      ),
+                                      builder: (_) => widget.invitations != null
+                                          ? LiveGroupDetails(
+                                              group: group,
+                                              userId: widget.userId,
+                                              expenses:
+                                                  widget.expenseRepository!,
+                                              invitations: widget.invitations!,
+                                            )
+                                          : GroupDetailsPage(
+                                              group: group,
+                                              userId: widget.userId,
+                                              repository:
+                                                  widget.expenseRepository!,
+                                            ),
                                     ),
                                   ),
                             trailing: const Icon(Icons.chevron_right),

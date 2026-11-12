@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'cloud/cloud_config.dart';
 import 'cloud/cloud_home.dart';
 import 'cloud/group_repository.dart';
+import 'cloud/invitation_repository.dart';
 import 'cloud/expense_repository.dart';
 import 'demo_app.dart' show MyApp;
 
@@ -21,6 +22,7 @@ Future<void> main() async {
       await Firebase.initializeApp(options: CloudConfig.options);
       home = CloudAuthGate(
         auth: FirebaseAuth.instance,
+        invitations: FirestoreInvitationRepository(FirebaseFirestore.instance),
         repository: FirestoreGroupRepository(FirebaseFirestore.instance),
         expenseRepository: FirestoreExpenseRepository(
           FirebaseFirestore.instance,
