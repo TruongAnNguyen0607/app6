@@ -7,17 +7,20 @@ class SharedGroup {
     required this.name,
     required this.ownerId,
     required this.memberIds,
+    this.activeInviteCode,
   });
   final String id;
   final String name;
   final String ownerId;
   final List<String> memberIds;
+  final String? activeInviteCode;
 
   factory SharedGroup.fromMap(String id, Map<String, dynamic> data) =>
       SharedGroup(
         id: id,
         name: data['name'] as String,
         ownerId: data['ownerId'] as String,
+        activeInviteCode: data['activeInviteCode'] as String?,
         memberIds: List<String>.unmodifiable(
           (data['memberIds'] as List).cast<String>(),
         ),
@@ -70,7 +73,7 @@ class FirestoreGroupRepository implements GroupRepository {
     if (trimmed.isEmpty || trimmed.length > 80) {
       throw ArgumentError('Group names must contain 1–80 characters.');
     }
-    // Membership changes are deliberately reserved for a trusted invitation flow.
+    // New groups start with only their owner; invitations add other accounts.
     return firestore.collection('groups').doc().set({
       'name': trimmed,
       'ownerId': userId,

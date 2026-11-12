@@ -1,7 +1,46 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /invitations/{code} {
+      // Codes have ~99 bits of randomness. Exact-code lookup only; no directory.
+      allow get: if request.auth != null;
+      allow list: if false;
+      allow create: if request.auth != null
+        && code.matches('^[A-HJ-NP-Z2-9]{20}$')
+        && request.resource.data.keys().hasAll(['groupId', 'ownerId', 'expiresAt', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['groupId', 'ownerId', 'expiresAt', 'createdAt'])
+        && request.resource.data.groupId is string
+        && request.resource.data.ownerId == request.auth.uid
+        && get(/databases/$(database)/documents/groups/$(request.resource.data.groupId)).data.ownerId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/groups/$(request.resource.data.groupId)).data.activeInviteCode == code
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(25, 'h')
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
     match /groups/{groupId} {
+      function ownerInviteChange() {
+        let code = request.resource.data.activeInviteCode;
+        return request.auth.uid == resource.data.ownerId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeInviteCode'])
+          && (code == null || (code is string
+            && getAfter(/databases/$(database)/documents/invitations/$(code)).data.groupId == groupId
+            && getAfter(/databases/$(database)/documents/invitations/$(code)).data.ownerId == request.auth.uid
+            && getAfter(/databases/$(database)/documents/invitations/$(code)).data.expiresAt > request.time));
+      }
+      function joinByInvitation() {
+        let code = request.resource.data.lastJoinCode;
+        let invitation = get(/databases/$(database)/documents/invitations/$(code)).data;
+        let members = request.resource.data.memberIds;
+        return code is string && resource.data.activeInviteCode == code
+          && invitation.groupId == groupId && invitation.expiresAt > request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'lastJoinCode'])
+          && members is list && members.size() <= 50
+          && ((request.auth.uid in resource.data.memberIds && members == resource.data.memberIds)
+            || (!(request.auth.uid in resource.data.memberIds)
+              && members == resource.data.memberIds.concat([request.auth.uid])));
+      }
       allow read: if request.auth != null && request.auth.uid in resource.data.memberIds;
       allow create: if request.auth != null
         && request.resource.data.keys().hasAll(['name', 'ownerId', 'memberIds', 'createdAt'])
@@ -12,8 +51,9 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.memberIds == [request.auth.uid]
         && request.resource.data.createdAt == request.time;
-      // Invites and edits require a separately reviewed membership workflow.
-      allow update, delete: if false;
+      // Only the owner rotates codes; a code holder can append only their own UID.
+      allow update: if request.auth != null && (ownerInviteChange() || joinByInvitation());
+      allow delete: if false;
       match /expenses/{expenseId} {
         function group() {
           return get(/databases/$(database)/documents/groups/$(groupId)).data;

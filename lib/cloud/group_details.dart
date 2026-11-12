@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import 'expense_repository.dart';
 import 'group_repository.dart';
+import 'invitation_repository.dart';
+import 'invitation_widgets.dart';
 
 String memberLabel(SharedGroup group, String uid, String currentUser) =>
     uid == currentUser ? 'You' : 'Member ${group.memberIds.indexOf(uid) + 1}';
@@ -20,10 +22,12 @@ class GroupDetailsPage extends StatefulWidget {
     required this.group,
     required this.userId,
     required this.repository,
+    this.invitations,
   });
   final SharedGroup group;
   final String userId;
   final ExpenseRepository repository;
+  final InvitationRepository? invitations;
   @override
   State<GroupDetailsPage> createState() => _GroupDetailsPageState();
 }
@@ -48,7 +52,25 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   );
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.group.name)),
+    appBar: AppBar(
+      title: Text(widget.group.name),
+      actions: [
+        if (widget.invitations != null && widget.group.ownerId == widget.userId)
+          IconButton(
+            tooltip: 'Invite members',
+            icon: const Icon(Icons.person_add_alt_1),
+            onPressed: () => showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => InviteMembersDialog(
+                group: widget.group,
+                userId: widget.userId,
+                repository: widget.invitations!,
+              ),
+            ),
+          ),
+      ],
+    ),
     floatingActionButton: FloatingActionButton.extended(
       onPressed: add,
       icon: const Icon(Icons.add),
@@ -147,7 +169,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               ),
             if (widget.group.memberIds.length == 1)
               const Text(
-                'Only you are in this group. Expenses will be saved, but there is no shared debt until other members join. Invitations are coming next.',
+                'Only you are in this group. Expenses will be saved, but there is no shared debt until other members join. The group owner can invite others using the invite button above.',
               ),
             const SizedBox(height: 28),
             Text('Expenses', style: Theme.of(context).textTheme.headlineSmall),
