@@ -43,7 +43,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   Future<void> add() => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
+    // Sheet drag dismissal bypasses PopScope. Use the guarded Cancel/back
+    // actions instead so a pending write cannot outlive a dismissed form.
+    enableDrag: false,
+    showDragHandle: false,
+    isDismissible: false,
     builder: (_) => AddCloudExpense(
       group: widget.group,
       userId: widget.userId,
@@ -237,6 +241,7 @@ class _AddCloudExpenseState extends State<AddCloudExpense> {
   }
 
   Future<void> save() async {
+    if (saving) return;
     if (!form.currentState!.validate()) return;
     if (participants.isEmpty || !participants.contains(payer)) {
       setState(() => error = 'Include the payer and at least one participant.');
@@ -368,6 +373,10 @@ class _AddCloudExpenseState extends State<AddCloudExpense> {
               child: Text(
                 saving ? 'Waiting for cloud confirmation…' : 'Save expense',
               ),
+            ),
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
             if (saving)
               const Text(
