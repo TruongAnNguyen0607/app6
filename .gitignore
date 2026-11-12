@@ -52,3 +52,9 @@ firebase-config.local.json
 .firebase/
 firebase-debug.log
 firestore-debug.log
+
+# Local rules-test tooling
+node_modules/
+
+# Kotlin build cache
+android/.kotlin/

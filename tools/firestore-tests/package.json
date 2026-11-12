@@ -1,0 +1,1 @@
+{"name":"together-firestore-tests","private":true,"type":"module","scripts":{"test":"firebase emulators:exec --project demo-together-invites --only firestore --config ../../firebase.json \"node --test invites.test.mjs\""},"devDependencies":{"@firebase/rules-unit-testing":"^6.0.0","firebase":"^13.3.0","firebase-tools":"^15.36.0"}}
