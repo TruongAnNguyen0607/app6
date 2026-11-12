@@ -26,6 +26,19 @@ class FakeExpenses implements ExpenseRepository {
   }
 }
 
+class PendingExpenses implements ExpenseRepository {
+  final pending = Completer<void>();
+  int writes = 0;
+  @override
+  Stream<ExpenseFeed> watchExpenses(String groupId) =>
+      Stream.value(const ExpenseFeed([]));
+  @override
+  Future<void> addExpense(String groupId, SharedExpense expense) {
+    writes++;
+    return pending.future;
+  }
+}
+
 class TestGroupRepository implements GroupRepository {
   @override
   Stream<GroupFeed> watchGroups(String userId) => Stream.value(
@@ -47,6 +60,78 @@ class TestGroupRepository implements GroupRepository {
 }
 
 void main() {
+  for (final fail in [false, true]) {
+    testWidgets(
+      'Pending expense blocks dismissal; ${fail ? 'failure allows cancellation' : 'success closes sheet'}',
+      (tester) async {
+        final repository = PendingExpenses();
+        await tester.pumpWidget(
+          MyApp(
+            home: GroupDetailsPage(
+              group: const SharedGroup(
+                id: 'g1',
+                name: 'Trip',
+                ownerId: 'a',
+                memberIds: ['a'],
+              ),
+              userId: 'a',
+              repository: repository,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add expense'));
+        await tester.pumpAndSettle();
+        // Cancellation remains available before any write starts.
+        await tester.ensureVisible(find.text('Cancel'));
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AddCloudExpense), findsNothing);
+        await tester.tap(find.text('Add expense'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextFormField).at(0), 'Dinner');
+        await tester.enterText(find.byType(TextFormField).at(1), '10');
+        await tester.ensureVisible(find.text('Save expense'));
+        await tester.tap(find.text('Save expense'));
+        await tester.pumpAndSettle();
+        expect(repository.writes, 1);
+        expect(
+          tester
+              .widget<TextButton>(find.widgetWithText(TextButton, 'Cancel'))
+              .onPressed,
+          isNull,
+        );
+        await tester.fling(
+          find.byType(BottomSheet),
+          const Offset(0, 800),
+          2000,
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(AddCloudExpense), findsOneWidget);
+        await tester.tapAt(const Offset(5, 5));
+        await tester.pumpAndSettle();
+        expect(find.byType(AddCloudExpense), findsOneWidget);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.byType(AddCloudExpense), findsOneWidget);
+        expect(repository.writes, 1);
+        if (fail) {
+          repository.pending.completeError(Exception('Write rejected'));
+          await tester.pumpAndSettle();
+          expect(find.textContaining('Could not save.'), findsOneWidget);
+          await tester.ensureVisible(find.text('Cancel'));
+          await tester.tap(find.text('Cancel'));
+        } else {
+          repository.pending.complete();
+        }
+        await tester.pumpAndSettle();
+        expect(find.byType(AddCloudExpense), findsNothing);
+        expect(repository.writes, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('Phone dashboard opens the selected group', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(390, 844);
