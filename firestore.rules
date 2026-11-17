@@ -81,6 +81,15 @@ service cloud.firestore {
           && request.resource.data.createdAt == request.time;
         allow update, delete: if false;
       }
+      match /party_items/{itemId} {
+        function group() {
+          return get(/databases/$(database)/documents/groups/$(groupId)).data;
+        }
+        function isMember() {
+          return request.auth != null && request.auth.uid in group().memberIds;
+        }
+        allow read, write: if isMember();
+      }
     }
     match /{document=**} {
       allow read, write: if false;

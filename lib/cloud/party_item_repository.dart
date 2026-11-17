@@ -226,7 +226,6 @@ class FirestorePartyItemRepository implements PartyItemRepository {
       .collection('groups')
       .doc(partyId)
       .collection('party_items')
-      .orderBy('createdAt', descending: true)
       .snapshots(includeMetadataChanges: true)
       .map(
         (snapshot) => PartyItemFeed(
