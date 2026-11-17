@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'group_repository.dart';
 import 'invitation_repository.dart';
 import 'expense_repository.dart';
+import 'party_item_repository.dart';
 import 'group_details.dart';
 
 class LiveGroupDetails extends StatefulWidget {
@@ -13,11 +14,13 @@ class LiveGroupDetails extends StatefulWidget {
     required this.userId,
     required this.expenses,
     required this.invitations,
+    this.partyItems,
   });
   final SharedGroup group;
   final String userId;
   final ExpenseRepository expenses;
   final InvitationRepository invitations;
+  final PartyItemRepository? partyItems;
   @override
   State<LiveGroupDetails> createState() => _LiveGroupDetailsState();
 }
@@ -72,6 +75,7 @@ class _LiveGroupDetailsState extends State<LiveGroupDetails> {
         userId: widget.userId,
         repository: widget.expenses,
         invitations: widget.invitations,
+        partyItemRepository: widget.partyItems,
       );
     },
   );

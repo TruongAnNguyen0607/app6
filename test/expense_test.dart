@@ -225,6 +225,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(repository.saved.single.amountCents, 1001);
     expect(find.text('You’re owed \$5.00'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Dinner'), 100);
     expect(find.text('Dinner'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());

@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'expense_repository.dart';
 import 'group_repository.dart';
 import 'invitation_repository.dart';
 import 'invitation_widgets.dart';
+import 'party_item_repository.dart';
+import 'party_item_widgets.dart';
 
 String memberLabel(SharedGroup group, String uid, String currentUser) =>
     uid == currentUser ? 'You' : 'Member ${group.memberIds.indexOf(uid) + 1}';
@@ -23,11 +26,13 @@ class GroupDetailsPage extends StatefulWidget {
     required this.userId,
     required this.repository,
     this.invitations,
+    this.partyItemRepository,
   });
   final SharedGroup group;
   final String userId;
   final ExpenseRepository repository;
   final InvitationRepository? invitations;
+  final PartyItemRepository? partyItemRepository;
   @override
   State<GroupDetailsPage> createState() => _GroupDetailsPageState();
 }
@@ -153,6 +158,57 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   : data.fromCache
                   ? 'Showing saved expenses • cloud not confirmed'
                   : 'Up to date',
+            ),
+            const SizedBox(height: 20),
+            Card(
+              color: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFFE5E9E1)),
+              ),
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD9EEAE),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.celebration_outlined,
+                    color: Color(0xFF183D36),
+                  ),
+                ),
+                title: const Text(
+                  'Party Items & Checklist',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF183D36),
+                  ),
+                ),
+                subtitle: const Text('Browse, select, and assign party items'),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  color: Color(0xFF183D36),
+                ),
+                onTap: () {
+                  final repo = widget.partyItemRepository ??
+                      FirestorePartyItemRepository(
+                        FirebaseFirestore.instance,
+                      );
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PartyItemSelectionPage(
+                        group: widget.group,
+                        userId: widget.userId,
+                        repository: repo,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 24),
             Text(

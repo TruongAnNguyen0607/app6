@@ -6,6 +6,7 @@ import 'expense_repository.dart';
 import 'group_details.dart';
 import 'invitation_repository.dart';
 import 'invitation_widgets.dart';
+import 'party_item_repository.dart';
 
 class CloudAuthGate extends StatelessWidget {
   const CloudAuthGate({
@@ -14,11 +15,13 @@ class CloudAuthGate extends StatelessWidget {
     required this.repository,
     required this.expenseRepository,
     this.invitations,
+    this.partyItemRepository,
   });
   final FirebaseAuth auth;
   final GroupRepository repository;
   final ExpenseRepository expenseRepository;
   final InvitationRepository? invitations;
+  final PartyItemRepository? partyItemRepository;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<User?>(
@@ -44,6 +47,7 @@ class CloudAuthGate extends StatelessWidget {
         repository: repository,
         expenseRepository: expenseRepository,
         invitations: invitations,
+        partyItemRepository: partyItemRepository,
         onSignOut: auth.signOut,
       );
     },
@@ -227,11 +231,13 @@ class CloudGroupsPage extends StatefulWidget {
     required this.onSignOut,
     this.expenseRepository,
     this.invitations,
+    this.partyItemRepository,
   });
   final String userId;
   final GroupRepository repository;
   final ExpenseRepository? expenseRepository;
   final InvitationRepository? invitations;
+  final PartyItemRepository? partyItemRepository;
   final Future<void> Function() onSignOut;
   @override
   State<CloudGroupsPage> createState() => _CloudGroupsPageState();
@@ -437,12 +443,16 @@ class _CloudGroupsPageState extends State<CloudGroupsPage> {
                                               expenses:
                                                   widget.expenseRepository!,
                                               invitations: widget.invitations!,
+                                              partyItems:
+                                                  widget.partyItemRepository,
                                             )
                                           : GroupDetailsPage(
                                               group: group,
                                               userId: widget.userId,
                                               repository:
                                                   widget.expenseRepository!,
+                                              partyItemRepository:
+                                                  widget.partyItemRepository,
                                             ),
                                     ),
                                   ),
