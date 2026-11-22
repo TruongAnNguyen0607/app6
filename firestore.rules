@@ -79,6 +79,55 @@ service cloud.firestore {
           && group().memberIds.hasAll(request.resource.data.participantIds)
           && request.resource.data.payerId in request.resource.data.participantIds
           && request.resource.data.createdAt == request.time;
+        // The person who added an expense, or the group owner, may correct or
+        // remove it. Authorship and the creation time can never be rewritten.
+        function canModify() {
+          return isMember()
+            && (resource.data.createdBy == request.auth.uid
+              || group().ownerId == request.auth.uid);
+        }
+        allow update: if canModify()
+          && request.resource.data.keys().hasAll(['title', 'amountCents', 'payerId', 'participantIds', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['title', 'amountCents', 'payerId', 'participantIds', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt'])
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 80
+          && request.resource.data.amountCents is int
+          && request.resource.data.amountCents > 0
+          && request.resource.data.amountCents <= 100000000
+          && request.resource.data.participantIds is list
+          && request.resource.data.participantIds.size() > 0
+          && request.resource.data.participantIds.size() <= 50
+          && request.resource.data.participantIds.toSet().size() == request.resource.data.participantIds.size()
+          && group().memberIds.hasAll(request.resource.data.participantIds)
+          && request.resource.data.payerId in request.resource.data.participantIds
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if canModify();
+      }
+      // Append-only history of expense changes. Entries snapshot the title and
+      // amount so they stay meaningful after an expense is deleted.
+      match /activity/{activityId} {
+        function group() {
+          return get(/databases/$(database)/documents/groups/$(groupId)).data;
+        }
+        function isMember() {
+          return request.auth != null && request.auth.uid in group().memberIds;
+        }
+        allow read: if isMember();
+        allow create: if isMember()
+          && request.resource.data.keys().hasAll(['type', 'expenseId', 'title', 'amountCents', 'actorId', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['type', 'expenseId', 'title', 'amountCents', 'actorId', 'createdAt', 'previousTitle', 'previousAmountCents'])
+          && request.resource.data.type in ['created', 'edited', 'deleted']
+          && request.resource.data.expenseId is string
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 80
+          && request.resource.data.amountCents is int
+          && request.resource.data.amountCents > 0
+          && request.resource.data.actorId == request.auth.uid
+          && request.resource.data.createdAt == request.time;
         allow update, delete: if false;
       }
       match /settlements/{settlementId} {

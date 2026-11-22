@@ -18,6 +18,38 @@ String balanceLabel(int cents) => cents == 0
     : cents > 0
     ? 'You’re owed ${dollars(cents)}'
     : 'You owe ${dollars(-cents)}';
+/// The person who added an expense, or the group owner, may edit or delete it.
+bool canModifyExpense(SharedExpense expense, SharedGroup group, String uid) =>
+    expense.createdBy == uid || group.ownerId == uid;
+
+String activityTime(DateTime? time) {
+  if (time == null) return 'just now';
+  final local = time.toLocal();
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '${local.month}/${local.day} $hour:$minute ${local.hour < 12 ? 'AM' : 'PM'}';
+}
+
+String activityLabel(SharedGroup group, ExpenseActivity a, String me) {
+  final who = memberLabel(group, a.actorId, me);
+  final what = '"${a.title}" (${dollars(a.amountCents)})';
+  switch (a.type) {
+    case ActivityType.created:
+      return '$who added $what';
+    case ActivityType.deleted:
+      return '$who deleted $what';
+    case ActivityType.edited:
+      final was = [
+        if (a.previousTitle != null && a.previousTitle != a.title)
+          '"${a.previousTitle}"',
+        if (a.previousAmountCents != null &&
+            a.previousAmountCents != a.amountCents)
+          dollars(a.previousAmountCents!),
+      ];
+      return '$who edited $what${was.isEmpty ? '' : ' • was ${was.join(' ')}'}';
+  }
+}
+
 String transferLabel(SharedGroup group, Transfer t, String currentUser) {
   final from = memberLabel(group, t.fromId, currentUser);
   final to = memberLabel(group, t.toId, currentUser);
@@ -55,6 +87,70 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     return repository is SettlementRepository
         ? repository as SettlementRepository
         : null;
+  }
+
+  ExpenseEditRepository? get editRepository {
+    final repository = widget.repository;
+    return repository is ExpenseEditRepository
+        ? repository as ExpenseEditRepository
+        : null;
+  }
+
+  bool canModify(SharedExpense expense) =>
+      editRepository != null &&
+      canModifyExpense(expense, widget.group, widget.userId);
+
+  Future<void> editExpense(SharedExpense expense) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    enableDrag: false,
+    showDragHandle: false,
+    isDismissible: false,
+    builder: (_) => AddCloudExpense(
+      group: widget.group,
+      userId: widget.userId,
+      repository: widget.repository,
+      existing: expense,
+    ),
+  );
+
+  Future<void> deleteExpense(SharedExpense expense) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete expense?'),
+        content: Text(
+          '"${expense.title}" (${dollars(expense.amountCents)}) will be removed and everyone’s balances will update. The deletion is recorded in the activity history.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await editRepository!.deleteExpense(
+        widget.group.id,
+        expense,
+        actorId: widget.userId,
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not delete. You may not have permission, or the connection failed.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> settle(Transfer transfer) => showDialog<void>(
@@ -303,11 +399,58 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   leading: const Icon(Icons.receipt_long_outlined),
                   title: Text(expense.title),
                   subtitle: Text(
-                    '${memberLabel(widget.group, expense.payerId, widget.userId)} paid • ${expense.participantIds.length} participant(s)\nYour share: ${dollars(expense.shares[widget.userId] ?? 0)}',
+                    '${memberLabel(widget.group, expense.payerId, widget.userId)} paid • ${expense.participantIds.length} participant(s)${expense.updatedBy == null ? '' : ' • Edited'}\nYour share: ${dollars(expense.shares[widget.userId] ?? 0)}',
                   ),
-                  trailing: Text(dollars(expense.amountCents)),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(dollars(expense.amountCents)),
+                      if (canModify(expense))
+                        PopupMenuButton<String>(
+                          tooltip: 'Expense actions',
+                          onSelected: (action) => action == 'edit'
+                              ? editExpense(expense)
+                              : deleteExpense(expense),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'edit', child: Text('Edit')),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete'),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
               ),
+            if (editRepository != null && data.expenses.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  'You can edit or delete expenses you added. The group owner can edit or delete any expense. All changes are recorded in the activity history.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            if (data.activity.isNotEmpty) ...[
+              const SizedBox(height: 28),
+              Text(
+                'Activity',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
+              for (final a in data.activity)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  leading: Icon(switch (a.type) {
+                    ActivityType.created => Icons.add_circle_outline,
+                    ActivityType.edited => Icons.edit_outlined,
+                    ActivityType.deleted => Icons.delete_outline,
+                  }),
+                  title: Text(activityLabel(widget.group, a, widget.userId)),
+                  subtitle: Text(activityTime(a.createdAt)),
+                ),
+            ],
           ],
         );
       },
@@ -321,10 +464,14 @@ class AddCloudExpense extends StatefulWidget {
     required this.group,
     required this.userId,
     required this.repository,
+    this.existing,
   });
   final SharedGroup group;
   final String userId;
   final ExpenseRepository repository;
+
+  /// When set, the form edits this expense instead of adding a new one.
+  final SharedExpense? existing;
   @override
   State<AddCloudExpense> createState() => _AddCloudExpenseState();
 }
@@ -343,8 +490,16 @@ class _AddCloudExpenseState extends State<AddCloudExpense> {
   @override
   void initState() {
     super.initState();
-    payer = widget.userId;
-    participants = widget.group.memberIds.toSet();
+    final existing = widget.existing;
+    if (existing == null) {
+      payer = widget.userId;
+      participants = widget.group.memberIds.toSet();
+    } else {
+      payer = existing.payerId;
+      participants = existing.participantIds.toSet();
+      title.text = existing.title;
+      amount.text = (existing.amountCents / 100).toStringAsFixed(2);
+    }
   }
 
   @override
@@ -361,22 +516,35 @@ class _AddCloudExpenseState extends State<AddCloudExpense> {
       setState(() => error = 'Include the payer and at least one participant.');
       return;
     }
+    final existing = widget.existing;
+    final editor = widget.repository;
+    if (existing != null && editor is! ExpenseEditRepository) {
+      setState(() => error = 'Editing is not available right now.');
+      return;
+    }
     setState(() {
       saving = true;
       error = null;
     });
     try {
-      await widget.repository.addExpense(
-        widget.group.id,
-        SharedExpense(
-          id: id,
-          title: title.text.trim(),
-          amountCents: parseCents(amount.text)!,
-          payerId: payer,
-          participantIds: participants.toList(),
-          createdBy: widget.userId,
-        ),
+      final expense = SharedExpense(
+        id: existing?.id ?? id,
+        title: title.text.trim(),
+        amountCents: parseCents(amount.text)!,
+        payerId: payer,
+        participantIds: participants.toList(),
+        createdBy: existing?.createdBy ?? widget.userId,
       );
+      if (existing == null) {
+        await widget.repository.addExpense(widget.group.id, expense);
+      } else {
+        await (editor as ExpenseEditRepository).updateExpense(
+          widget.group.id,
+          expense,
+          previous: existing,
+          actorId: widget.userId,
+        );
+      }
       if (mounted) Navigator.pop(context);
     } catch (_) {
       if (mounted) {
@@ -406,7 +574,7 @@ class _AddCloudExpenseState extends State<AddCloudExpense> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Add an expense',
+              widget.existing == null ? 'Add an expense' : 'Edit expense',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 20),
@@ -485,7 +653,11 @@ class _AddCloudExpenseState extends State<AddCloudExpense> {
             FilledButton(
               onPressed: saving ? null : save,
               child: Text(
-                saving ? 'Waiting for cloud confirmation…' : 'Save expense',
+                saving
+                    ? 'Waiting for cloud confirmation…'
+                    : widget.existing == null
+                    ? 'Save expense'
+                    : 'Save changes',
               ),
             ),
             TextButton(

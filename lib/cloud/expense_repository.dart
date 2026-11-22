@@ -22,8 +22,12 @@ class SharedExpense {
     required this.payerId,
     required List<String> participantIds,
     required this.createdBy,
+    this.updatedBy,
   }) : participantIds = List.unmodifiable(participantIds);
   final String id, title, payerId, createdBy;
+
+  /// Set once the expense has been edited after it was created.
+  final String? updatedBy;
   final int amountCents;
   final List<String> participantIds;
 
@@ -35,6 +39,7 @@ class SharedExpense {
         payerId: map['payerId'] as String,
         participantIds: (map['participantIds'] as List).cast<String>(),
         createdBy: map['createdBy'] as String,
+        updatedBy: map['updatedBy'] as String?,
       );
 
   Map<String, int> get shares {
@@ -84,15 +89,59 @@ class Transfer {
   final int amountCents;
 }
 
+enum ActivityType { created, edited, deleted }
+
+/// One entry in the group's append-only expense history. Titles and amounts
+/// are snapshots, so entries stay readable after an expense is deleted.
+class ExpenseActivity {
+  const ExpenseActivity({
+    required this.id,
+    required this.type,
+    required this.expenseId,
+    required this.title,
+    required this.amountCents,
+    required this.actorId,
+    this.previousTitle,
+    this.previousAmountCents,
+    this.createdAt,
+  });
+  final String id, expenseId, title, actorId;
+  final ActivityType type;
+  final int amountCents;
+  final String? previousTitle;
+  final int? previousAmountCents;
+
+  /// Null while the server timestamp is still pending.
+  final DateTime? createdAt;
+
+  factory ExpenseActivity.fromMap(String id, Map<String, dynamic> map) =>
+      ExpenseActivity(
+        id: id,
+        type: ActivityType.values.firstWhere(
+          (t) => t.name == map['type'],
+          orElse: () => ActivityType.edited,
+        ),
+        expenseId: map['expenseId'] as String,
+        title: map['title'] as String,
+        amountCents: map['amountCents'] as int,
+        actorId: map['actorId'] as String,
+        previousTitle: map['previousTitle'] as String?,
+        previousAmountCents: map['previousAmountCents'] as int?,
+        createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
+      );
+}
+
 class ExpenseFeed {
   const ExpenseFeed(
     this.expenses, {
     this.settlements = const [],
+    this.activity = const [],
     this.fromCache = false,
     this.pendingWrites = false,
   });
   final List<SharedExpense> expenses;
   final List<Settlement> settlements;
+  final List<ExpenseActivity> activity;
   final bool fromCache, pendingWrites;
   int get total =>
       expenses.fold(0, (total, expense) => total + expense.amountCents);
@@ -147,87 +196,209 @@ abstract class SettlementRepository {
   Future<void> addSettlement(String groupId, Settlement settlement);
 }
 
+/// Optional capability: repositories that can correct or remove expenses.
+/// Every change also appends an entry to the group's activity history.
+abstract class ExpenseEditRepository {
+  /// Replaces the editable fields of [previous] with those of [updated].
+  Future<void> updateExpense(
+    String groupId,
+    SharedExpense updated, {
+    required SharedExpense previous,
+    required String actorId,
+  });
+  Future<void> deleteExpense(
+    String groupId,
+    SharedExpense expense, {
+    required String actorId,
+  });
+}
+
 class FirestoreExpenseRepository
-    implements ExpenseRepository, SettlementRepository {
+    implements ExpenseRepository, SettlementRepository, ExpenseEditRepository {
   FirestoreExpenseRepository(this.firestore);
   final FirebaseFirestore firestore;
 
-  /// Combines the expenses and settlements collections into one feed so every
-  /// balance in the app reflects repayments.
+  /// Combines expenses, settlements and activity into one feed so every
+  /// balance and history entry in the app stays consistent.
   @override
   Stream<ExpenseFeed> watchExpenses(String groupId) {
     final group = firestore.collection('groups').doc(groupId);
     late final StreamController<ExpenseFeed> controller;
-    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? expensesSub;
-    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? settlementsSub;
-    QuerySnapshot<Map<String, dynamic>>? expenses, settlements;
+    final subscriptions = <StreamSubscription<dynamic>>[];
+    QuerySnapshot<Map<String, dynamic>>? expenses, settlements, activity;
 
     void emit() {
-      final e = expenses, s = settlements;
-      if (e == null || s == null) return;
+      final e = expenses, s = settlements, a = activity;
+      if (e == null || s == null || a == null) return;
       controller.add(
         ExpenseFeed(
           e.docs.map((d) => SharedExpense.fromMap(d.id, d.data())).toList(),
           settlements: s.docs
               .map((d) => Settlement.fromMap(d.id, d.data()))
               .toList(),
-          fromCache: e.metadata.isFromCache || s.metadata.isFromCache,
-          pendingWrites: e.metadata.hasPendingWrites ||
-              s.metadata.hasPendingWrites,
+          activity: a.docs
+              .map((d) => ExpenseActivity.fromMap(d.id, d.data()))
+              .toList(),
+          fromCache:
+              e.metadata.isFromCache ||
+              s.metadata.isFromCache ||
+              a.metadata.isFromCache,
+          pendingWrites:
+              e.metadata.hasPendingWrites ||
+              s.metadata.hasPendingWrites ||
+              a.metadata.hasPendingWrites,
         ),
       );
     }
 
+    Stream<QuerySnapshot<Map<String, dynamic>>> newestFirst(
+      String name, [
+      int? limit,
+    ]) {
+      var query = group
+          .collection(name)
+          .orderBy('createdAt', descending: true);
+      if (limit != null) query = query.limit(limit);
+      return query.snapshots(includeMetadataChanges: true);
+    }
+
     controller = StreamController<ExpenseFeed>(
       onListen: () {
-        expensesSub = group
-            .collection('expenses')
-            .orderBy('createdAt', descending: true)
-            .snapshots(includeMetadataChanges: true)
-            .listen((snapshot) {
-              expenses = snapshot;
-              emit();
-            }, onError: controller.addError);
-        settlementsSub = group
-            .collection('settlements')
-            .orderBy('createdAt', descending: true)
-            .snapshots(includeMetadataChanges: true)
-            .listen((snapshot) {
-              settlements = snapshot;
-              emit();
-            }, onError: controller.addError);
+        subscriptions.addAll([
+          newestFirst('expenses').listen((snapshot) {
+            expenses = snapshot;
+            emit();
+          }, onError: controller.addError),
+          newestFirst('settlements').listen((snapshot) {
+            settlements = snapshot;
+            emit();
+          }, onError: controller.addError),
+          newestFirst('activity', 50).listen((snapshot) {
+            activity = snapshot;
+            emit();
+          }, onError: controller.addError),
+        ]);
       },
       onCancel: () async {
-        await expensesSub?.cancel();
-        await settlementsSub?.cancel();
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
       },
     );
     return controller.stream;
   }
 
-  @override
-  Future<void> addExpense(String groupId, SharedExpense expense) {
+  Map<String, Object?> _activity({
+    required ActivityType type,
+    required String expenseId,
+    required String title,
+    required int amountCents,
+    required String actorId,
+    String? previousTitle,
+    int? previousAmountCents,
+  }) => {
+    'type': type.name,
+    'expenseId': expenseId,
+    'title': title,
+    'amountCents': amountCents,
+    'actorId': actorId,
+    'previousTitle': ?previousTitle,
+    'previousAmountCents': ?previousAmountCents,
+    'createdAt': FieldValue.serverTimestamp(),
+  };
+
+  void _validate(SharedExpense expense) {
     if (expense.title.trim().isEmpty ||
-        expense.title.length > 80 ||
+        expense.title.trim().length > 80 ||
         expense.amountCents <= 0 ||
         expense.amountCents > 100000000 ||
         expense.participantIds.isEmpty ||
         !expense.participantIds.contains(expense.payerId)) {
       throw ArgumentError('Invalid expense');
     }
-    return firestore
-        .collection('groups')
-        .doc(groupId)
-        .collection('expenses')
-        .doc(expense.id)
-        .set({
-          'title': expense.title.trim(),
-          'amountCents': expense.amountCents,
-          'payerId': expense.payerId,
-          'participantIds': expense.participantIds,
-          'createdBy': expense.createdBy,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+  }
+
+  @override
+  Future<void> addExpense(String groupId, SharedExpense expense) {
+    _validate(expense);
+    final group = firestore.collection('groups').doc(groupId);
+    // One batch keeps the expense and its history entry in step. The history ID
+    // is derived from the expense ID so a retried submit cannot log it twice.
+    final batch = firestore.batch()
+      ..set(group.collection('expenses').doc(expense.id), {
+        'title': expense.title.trim(),
+        'amountCents': expense.amountCents,
+        'payerId': expense.payerId,
+        'participantIds': expense.participantIds,
+        'createdBy': expense.createdBy,
+        'createdAt': FieldValue.serverTimestamp(),
+      })
+      ..set(
+        group.collection('activity').doc('${expense.id}-created'),
+        _activity(
+          type: ActivityType.created,
+          expenseId: expense.id,
+          title: expense.title.trim(),
+          amountCents: expense.amountCents,
+          actorId: expense.createdBy,
+        ),
+      );
+    return batch.commit();
+  }
+
+  @override
+  Future<void> updateExpense(
+    String groupId,
+    SharedExpense updated, {
+    required SharedExpense previous,
+    required String actorId,
+  }) {
+    _validate(updated);
+    final group = firestore.collection('groups').doc(groupId);
+    final batch = firestore.batch()
+      ..update(group.collection('expenses').doc(previous.id), {
+        'title': updated.title.trim(),
+        'amountCents': updated.amountCents,
+        'payerId': updated.payerId,
+        'participantIds': updated.participantIds,
+        'updatedBy': actorId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      })
+      ..set(
+        group.collection('activity').doc(),
+        _activity(
+          type: ActivityType.edited,
+          expenseId: previous.id,
+          title: updated.title.trim(),
+          amountCents: updated.amountCents,
+          actorId: actorId,
+          previousTitle: previous.title,
+          previousAmountCents: previous.amountCents,
+        ),
+      );
+    return batch.commit();
+  }
+
+  @override
+  Future<void> deleteExpense(
+    String groupId,
+    SharedExpense expense, {
+    required String actorId,
+  }) {
+    final group = firestore.collection('groups').doc(groupId);
+    final batch = firestore.batch()
+      ..delete(group.collection('expenses').doc(expense.id))
+      ..set(
+        group.collection('activity').doc(),
+        _activity(
+          type: ActivityType.deleted,
+          expenseId: expense.id,
+          title: expense.title,
+          amountCents: expense.amountCents,
+          actorId: actorId,
+        ),
+      );
+    return batch.commit();
   }
 
   @override
