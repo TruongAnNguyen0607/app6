@@ -18,6 +18,11 @@ String balanceLabel(int cents) => cents == 0
     : cents > 0
     ? 'You’re owed ${dollars(cents)}'
     : 'You owe ${dollars(-cents)}';
+String transferLabel(SharedGroup group, Transfer t, String currentUser) {
+  final from = memberLabel(group, t.fromId, currentUser);
+  final to = memberLabel(group, t.toId, currentUser);
+  return '$from ${t.fromId == currentUser ? 'owe' : 'owes'} $to ${dollars(t.amountCents)}';
+}
 
 class GroupDetailsPage extends StatefulWidget {
   const GroupDetailsPage({
@@ -44,6 +49,24 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     super.initState();
     feed = widget.repository.watchExpenses(widget.group.id);
   }
+
+  SettlementRepository? get settlementRepository {
+    final repository = widget.repository;
+    return repository is SettlementRepository
+        ? repository as SettlementRepository
+        : null;
+  }
+
+  Future<void> settle(Transfer transfer) => showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => SettleUpDialog(
+      group: widget.group,
+      userId: widget.userId,
+      repository: settlementRepository!,
+      transfer: transfer,
+    ),
+  );
 
   Future<void> add() => showModalBottomSheet<void>(
     context: context,
@@ -210,6 +233,41 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 },
               ),
             ),
+            const SizedBox(height: 24),
+            Text('Settle up', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 8),
+            if (data.transfers.isEmpty)
+              const Text('Everyone is settled up.')
+            else
+              for (final t in data.transfers)
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.swap_horiz),
+                    title: Text(transferLabel(widget.group, t, widget.userId)),
+                    trailing:
+                        settlementRepository != null &&
+                            (t.fromId == widget.userId ||
+                                t.toId == widget.userId)
+                        ? TextButton(
+                            onPressed: () => settle(t),
+                            child: const Text('Settle'),
+                          )
+                        : null,
+                  ),
+                ),
+            if (data.settlements.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('Payments', style: Theme.of(context).textTheme.titleMedium),
+              for (final s in data.settlements)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.check_circle_outline),
+                  title: Text(
+                    '${memberLabel(widget.group, s.fromId, widget.userId)} paid ${memberLabel(widget.group, s.toId, widget.userId)}',
+                  ),
+                  trailing: Text(dollars(s.amountCents)),
+                ),
+            ],
             const SizedBox(height: 24),
             Text(
               'Members & balances',
@@ -441,6 +499,128 @@ class _AddCloudExpenseState extends State<AddCloudExpense> {
           ],
         ),
       ),
+    ),
+  );
+}
+
+/// Records a full or partial repayment toward a suggested [Transfer].
+class SettleUpDialog extends StatefulWidget {
+  const SettleUpDialog({
+    super.key,
+    required this.group,
+    required this.userId,
+    required this.repository,
+    required this.transfer,
+  });
+  final SharedGroup group;
+  final String userId;
+  final SettlementRepository repository;
+  final Transfer transfer;
+  @override
+  State<SettleUpDialog> createState() => _SettleUpDialogState();
+}
+
+class _SettleUpDialogState extends State<SettleUpDialog> {
+  late final amount = TextEditingController(
+    text: (widget.transfer.amountCents / 100).toStringAsFixed(2),
+  );
+  final form = GlobalKey<FormState>();
+  bool saving = false;
+  String? error;
+  // One ID per dialog prevents duplicate writes from repeated taps.
+  final id = base64UrlEncode(
+    List<int>.generate(18, (_) => Random.secure().nextInt(256)),
+  );
+
+  @override
+  void dispose() {
+    amount.dispose();
+    super.dispose();
+  }
+
+  String? validate(String? value) {
+    final cents = parseCents(value ?? '');
+    if (cents == null) return 'Enter an amount with up to 2 decimal places';
+    if (cents > widget.transfer.amountCents) {
+      return 'Enter ${dollars(widget.transfer.amountCents)} or less';
+    }
+    return null;
+  }
+
+  Future<void> save() async {
+    if (saving || !form.currentState!.validate()) return;
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      await widget.repository.addSettlement(
+        widget.group.id,
+        Settlement(
+          id: id,
+          fromId: widget.transfer.fromId,
+          toId: widget.transfer.toId,
+          amountCents: parseCents(amount.text)!,
+          createdBy: widget.userId,
+        ),
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => error =
+              'Could not save. Check your connection and confirm the updated database rules are published.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !saving,
+    child: AlertDialog(
+      title: const Text('Record payment'),
+      content: Form(
+        key: form,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(transferLabel(widget.group, widget.transfer, widget.userId)),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: amount,
+              enabled: !saving,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Amount paid (USD)',
+                helperText: 'Lower the amount to record a partial payment',
+              ),
+              validator: validate,
+            ),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: saving ? null : save,
+          child: Text(saving ? 'Saving…' : 'Record payment'),
+        ),
+      ],
     ),
   );
 }

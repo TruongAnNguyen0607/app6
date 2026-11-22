@@ -81,6 +81,31 @@ service cloud.firestore {
           && request.resource.data.createdAt == request.time;
         allow update, delete: if false;
       }
+      match /settlements/{settlementId} {
+        function group() {
+          return get(/databases/$(database)/documents/groups/$(groupId)).data;
+        }
+        function isMember() {
+          return request.auth != null && request.auth.uid in group().memberIds;
+        }
+        allow read: if isMember();
+        // Append-only record of a repayment between two distinct members. Only
+        // a party to the payment can record it, and it cannot be edited later.
+        allow create: if isMember()
+          && request.resource.data.keys().hasAll(['fromId', 'toId', 'amountCents', 'createdBy', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['fromId', 'toId', 'amountCents', 'createdBy', 'createdAt'])
+          && request.resource.data.fromId is string
+          && request.resource.data.toId is string
+          && request.resource.data.fromId != request.resource.data.toId
+          && group().memberIds.hasAll([request.resource.data.fromId, request.resource.data.toId])
+          && request.resource.data.createdBy == request.auth.uid
+          && (request.auth.uid == request.resource.data.fromId || request.auth.uid == request.resource.data.toId)
+          && request.resource.data.amountCents is int
+          && request.resource.data.amountCents > 0
+          && request.resource.data.amountCents <= 100000000
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
       match /party_items/{itemId} {
         function group() {
           return get(/databases/$(database)/documents/groups/$(groupId)).data;
