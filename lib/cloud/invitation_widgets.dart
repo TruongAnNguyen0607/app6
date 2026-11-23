@@ -153,7 +153,7 @@ class _JoinGroupDialogState extends State<JoinGroupDialog> {
               const SizedBox(height: 16),
               const Text(
                 'You’ll see the group’s expense history. Existing expenses keep their original participants; joining does not add you to old debts.',
-                style: TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: 15),
               ),
               if (error != null)
                 Padding(
@@ -270,7 +270,7 @@ class _InviteMembersDialogState extends State<InviteMembersDialog> {
                   SelectableText(
                     displayInviteCode(current.code),
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1,
                     ),
@@ -308,7 +308,7 @@ class _InviteMembersDialogState extends State<InviteMembersDialog> {
                 const SizedBox(height: 12),
                 const Text(
                   'Codes last 24 hours and can be used by multiple people, up to 50 group members. Replacing or revoking a code stops future joins; it does not remove existing members.',
-                  style: TextStyle(fontSize: 12),
+                  style: TextStyle(fontSize: 15),
                 ),
                 if (error != null)
                   Padding(

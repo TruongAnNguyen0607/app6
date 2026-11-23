@@ -29,23 +29,23 @@ class MyApp extends StatelessWidget {
       fontFamily: 'Segoe UI',
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
-          fontSize: 34,
+          fontSize: 36,
           fontWeight: FontWeight.w700,
           color: ink,
           letterSpacing: -1.2,
         ),
         headlineSmall: TextStyle(
-          fontSize: 23,
+          fontSize: 25,
           fontWeight: FontWeight.w700,
           color: ink,
           letterSpacing: -.6,
         ),
         titleMedium: TextStyle(
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
           color: ink,
         ),
-        bodyMedium: TextStyle(fontSize: 14, color: muted),
+        bodyMedium: TextStyle(fontSize: 16, color: muted),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -220,7 +220,7 @@ class _HomePageState extends State<HomePage> {
                             Flexible(
                               child: Text(
                                 'Less money talk. More good times.',
-                                style: TextStyle(fontSize: 12),
+                                style: TextStyle(fontSize: 15),
                               ),
                             ),
                           ],
@@ -254,7 +254,7 @@ class _HomePageState extends State<HomePage> {
           child: Text(
             'YOUR SPACE',
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               letterSpacing: 2,
             ),
@@ -281,7 +281,7 @@ class _HomePageState extends State<HomePage> {
                 title: Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -308,7 +308,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 8),
               const Text(
                 'We’ll help with the splitting.',
-                style: TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: 15),
               ),
               TextButton(
                 onPressed: addGroup,
@@ -326,7 +326,7 @@ class _HomePageState extends State<HomePage> {
                 'JD',
                 style: TextStyle(
                   color: ink,
-                  fontSize: 13,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -340,7 +340,7 @@ class _HomePageState extends State<HomePage> {
                     'Jamie Davis',
                     style: TextStyle(color: ink, fontWeight: FontWeight.w600),
                   ),
-                  Text('Personal space', style: TextStyle(fontSize: 11)),
+                  Text('Personal space', style: TextStyle(fontSize: 14)),
                 ],
               ),
             ),
@@ -359,7 +359,7 @@ class _HomePageState extends State<HomePage> {
         'together',
         style: TextStyle(
           color: ink,
-          fontSize: 25,
+          fontSize: 27,
           fontWeight: FontWeight.w800,
           letterSpacing: -1,
         ),
@@ -368,7 +368,7 @@ class _HomePageState extends State<HomePage> {
         '.',
         style: TextStyle(
           color: green,
-          fontSize: 30,
+          fontSize: 32,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -388,7 +388,7 @@ class _HomePageState extends State<HomePage> {
         const Text(
           'YOUR EVERYDAY, SHARED',
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 2,
           ),
@@ -397,7 +397,7 @@ class _HomePageState extends State<HomePage> {
       if (wide)
         const Padding(
           padding: EdgeInsets.only(right: 18),
-          child: Text('Demo workspace', style: TextStyle(fontSize: 12)),
+          child: Text('Demo workspace', style: TextStyle(fontSize: 15)),
         ),
       FilledButton.icon(
         onPressed: addExpense,
@@ -481,7 +481,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             Text(title, style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 3),
-            Text(subtitle, style: const TextStyle(fontSize: 12)),
+            Text(subtitle, style: const TextStyle(fontSize: 15)),
           ],
         ),
       ),
@@ -513,7 +513,7 @@ class _HomePageState extends State<HomePage> {
         Text(
           '${owed >= owing ? '+' : '−'}${money((owed - owing).abs())}',
           style: const TextStyle(
-            fontSize: 42,
+            fontSize: 44,
             fontWeight: FontWeight.w600,
             color: Colors.white,
             letterSpacing: -1.5,
@@ -524,7 +524,7 @@ class _HomePageState extends State<HomePage> {
           owed >= owing
               ? 'Looking good. You’re owed overall.'
               : 'A little settling up to do.',
-          style: const TextStyle(color: Color(0xFFB5CFC0), fontSize: 12),
+          style: const TextStyle(color: Color(0xFFB5CFC0), fontSize: 15),
         ),
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 20),
@@ -567,14 +567,14 @@ class _HomePageState extends State<HomePage> {
                   label,
                   style: const TextStyle(
                     color: Color(0xFFCEE0D6),
-                    fontSize: 11,
+                    fontSize: 14,
                   ),
                 ),
                 Text(
                   money(amount),
                   style: TextStyle(
                     color: color,
-                    fontSize: 21,
+                    fontSize: 23,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -603,7 +603,7 @@ class _HomePageState extends State<HomePage> {
               'A LITTLE EVERY DAY',
               style: TextStyle(
                 color: green,
-                fontSize: 10,
+                fontSize: 13,
                 letterSpacing: 1.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -624,7 +624,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 5),
         const Text(
           'A shared fund for your next adventure.',
-          style: TextStyle(fontSize: 12),
+          style: TextStyle(fontSize: 15),
         ),
         const SizedBox(height: 20),
         Row(
@@ -634,7 +634,7 @@ class _HomePageState extends State<HomePage> {
                 money(saved),
                 style: const TextStyle(
                   color: ink,
-                  fontSize: 19,
+                  fontSize: 21,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -661,7 +661,7 @@ class _HomePageState extends State<HomePage> {
         if (compact)
           const Text(
             '4 friends. One unforgettable trip.',
-            style: TextStyle(fontSize: 11),
+            style: TextStyle(fontSize: 14),
           )
         else
           FilledButton.icon(
@@ -727,7 +727,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 20),
             Text(g.name, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
-            Text(g.note, style: const TextStyle(fontSize: 11)),
+            Text(g.note, style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 20),
             Row(
               children: [
@@ -743,14 +743,14 @@ class _HomePageState extends State<HomePage> {
                       ][i],
                       child: Text(
                         ['J', 'A', 'S'][i],
-                        style: const TextStyle(fontSize: 10, color: ink),
+                        style: const TextStyle(fontSize: 13, color: ink),
                       ),
                     ),
                   ),
                 const SizedBox(width: 12),
                 Text(
                   '${g.members} members',
-                  style: const TextStyle(fontSize: 11),
+                  style: const TextStyle(fontSize: 14),
                 ),
               ],
             ),
@@ -767,7 +767,7 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(
                 color: balance(g) < 0 ? const Color(0xFF996340) : green,
                 fontWeight: FontWeight.w600,
-                fontSize: 13,
+                fontSize: 16,
               ),
             ),
           ],
@@ -818,7 +818,7 @@ class _HomePageState extends State<HomePage> {
                     title: Text(
                       list[i].name,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: ink,
                       ),
@@ -826,7 +826,7 @@ class _HomePageState extends State<HomePage> {
                     subtitle: Text(
                       '${list[i].group.name}\n${list[i].payer} paid • Split equally',
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 14,
                         color: muted,
                         height: 1.6,
                       ),
@@ -836,7 +836,7 @@ class _HomePageState extends State<HomePage> {
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         color: ink,
-                        fontSize: 15,
+                        fontSize: 17,
                       ),
                     ),
                   ),
@@ -866,7 +866,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 20),
             const Text(
               'Expenses are split equally among group members. This preview uses sample data; changes last for this session.',
-              style: TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: 15),
             ),
           ],
         ),
@@ -938,7 +938,7 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 18),
                   const Text(
                     'Split equally with everyone in the group.',
-                    style: TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: 15),
                   ),
                 ],
               ),
