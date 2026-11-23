@@ -158,7 +158,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   Text(
                     dollars(data.total),
                     style: const TextStyle(
-                      fontSize: 36,
+                      fontSize: 38,
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
@@ -168,7 +168,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                     balanceLabel(data.balanceFor(widget.userId)),
                     style: const TextStyle(
                       color: Color(0xFFD9EEAE),
-                      fontSize: 18,
+                      fontSize: 20,
                     ),
                   ),
                 ],
@@ -471,7 +471,7 @@ class _AddCloudExpenseState extends State<AddCloudExpense> {
               ),
             const Text(
               'Any leftover cents are assigned consistently by member ID. The payer is included in the split.',
-              style: TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: 15),
             ),
             if (error != null)
               Padding(

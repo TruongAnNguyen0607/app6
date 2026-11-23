@@ -276,7 +276,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                             : feedData.fromCache
                                 ? 'Showing saved items • cloud not confirmed'
                                 : 'Up to date',
-                        style: const TextStyle(fontSize: 12, color: _muted),
+                        style: const TextStyle(fontSize: 15, color: _muted),
                       ),
                       const SizedBox(height: 20),
 
@@ -331,7 +331,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                   'Party Checklist & Items',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -348,7 +348,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                   style: const TextStyle(
                     color: _ink,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 15,
                   ),
                 ),
               ),
@@ -373,13 +373,13 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                   children: [
                     const Text(
                       'Unassigned items',
-                      style: TextStyle(color: Color(0xFFCEE0D6), fontSize: 11),
+                      style: TextStyle(color: Color(0xFFCEE0D6), fontSize: 14),
                     ),
                     Text(
                       '${data.unassignedCount} needed',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -392,13 +392,13 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                   children: [
                     const Text(
                       'Estimated total',
-                      style: TextStyle(color: Color(0xFFCEE0D6), fontSize: 11),
+                      style: TextStyle(color: Color(0xFFCEE0D6), fontSize: 14),
                     ),
                     Text(
                       dollars(data.totalEstimatedCents),
                       style: const TextStyle(
                         color: _lime,
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -443,7 +443,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
           const SizedBox(height: 4),
           const Text(
             'Tap any item to add it to your party selection list.',
-            style: TextStyle(fontSize: 12, color: _muted),
+            style: TextStyle(fontSize: 15, color: _muted),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -454,7 +454,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                 avatar: Icon(preset.icon, size: 18, color: _green),
                 label: Text(
                   '${preset.name} (${preset.estimatedCents > 0 ? dollars(preset.estimatedCents) : 'Free/Bring'})',
-                  style: const TextStyle(fontSize: 12, color: _ink),
+                  style: const TextStyle(fontSize: 15, color: _ink),
                 ),
                 backgroundColor: _cream,
                 side: const BorderSide(color: Color(0xFFDDE3D5)),
@@ -503,7 +503,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                     label: Text(
                       filter == 'Mine' ? 'Assigned to Me' : filter,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 16,
                         fontWeight: selectedFilter == filter
                             ? FontWeight.bold
                             : FontWeight.normal,
@@ -543,7 +543,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                       fontWeight: selectedCategory == cat
                           ? FontWeight.bold
                           : FontWeight.normal,
-                      fontSize: 12,
+                      fontSize: 15,
                     ),
                     side: const BorderSide(color: Color(0xFFE5E9E1)),
                     onSelected: (bool sel) {
@@ -586,7 +586,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
             hasSearch ? 'No matching party items' : 'No party items yet',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 20,
                 ),
           ),
           const SizedBox(height: 8),
@@ -595,7 +595,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                 ? 'Try clearing your search or filter options.'
                 : 'Get the party started by adding items or choosing from standard party presets.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: _muted),
+            style: const TextStyle(fontSize: 16, color: _muted),
           ),
           const SizedBox(height: 20),
           if (hasSearch)
@@ -704,7 +704,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                       Text(
                         item.name,
                         style: const TextStyle(
-                          fontSize: 15,
+                          fontSize: 17,
                           fontWeight: FontWeight.bold,
                           color: _ink,
                         ),
@@ -725,7 +725,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                             child: Text(
                               item.category,
                               style:
-                                  const TextStyle(fontSize: 11, color: _muted),
+                                  const TextStyle(fontSize: 14, color: _muted),
                             ),
                           ),
                           if (item.quantity > 1) ...[
@@ -733,7 +733,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                             Text(
                               '• Qty: ${item.quantity}',
                               style:
-                                  const TextStyle(fontSize: 11, color: _muted),
+                                  const TextStyle(fontSize: 14, color: _muted),
                             ),
                           ],
                         ],
@@ -748,7 +748,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: _ink,
-                    fontSize: 14,
+                    fontSize: 16,
                   ),
                 ),
                 PopupMenuButton<String>(
@@ -777,7 +777,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
               const SizedBox(height: 8),
               Text(
                 item.notes!,
-                style: const TextStyle(fontSize: 12, color: _muted),
+                style: const TextStyle(fontSize: 15, color: _muted),
               ),
             ],
             const SizedBox(height: 12),
@@ -801,7 +801,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 15,
                       fontWeight:
                           item.isAssigned ? FontWeight.w600 : FontWeight.normal,
                       color: item.isAssigned ? _ink : _muted,
@@ -818,7 +818,7 @@ class _PartyItemSelectionPageState extends State<PartyItemSelectionPage> {
                   ),
                   label: Text(
                     isAssignedToMe ? 'Assigned' : 'Claim',
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 15),
                   ),
                   style: OutlinedButton.styleFrom(
                     padding:

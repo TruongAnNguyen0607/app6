@@ -419,7 +419,7 @@ class _CloudGroupsPageState extends State<CloudGroupsPage> {
                             : data.fromCache
                             ? 'Showing saved data • cloud not confirmed'
                             : 'Up to date',
-                        style: const TextStyle(fontSize: 12),
+                        style: const TextStyle(fontSize: 15),
                       ),
                       const SizedBox(height: 16),
                       if (data.groups.isEmpty)
